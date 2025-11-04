@@ -1,0 +1,40 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "D:\\Cuoi_Mon\\BlockChain\\contracts\\ShippingInsurance.sol": {
+      "lastModificationDate": 1762237385152,
+      "contentHash": "6e013aa689cf2a702d4f78cf8b80785a",
+      "sourceName": "ShippingInsurance.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "ShippingInsurance"
+      ]
+    }
+  }
+}

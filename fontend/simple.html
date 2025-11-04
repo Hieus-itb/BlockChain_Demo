@@ -1,0 +1,327 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Shipping Insurance Demo</title>
+        <!-- Use ESM build of ethers and run main script as a module -->
+        <script type="module">
+            import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.esm.min.js';
+
+            window._ethers = ethers; // expose to other scripts if needed
+        </script>
+</head>
+
+<body>
+    <h2>Shipping Insurance (demo)</h2>
+    <div>
+        <button id="connect">Connect MetaMask</button>
+        <span id="addr"></span>
+    </div>
+
+    <h3>Create policy</h3>
+    <label>Recipient (wallet): <input id="recipient" value="" placeholder="0x..." size="44"></label><br>
+    <label>Premium (ETH): <input id="premium" value="0.01"></label><br>
+    <label>Expiry (seconds from now): <input id="expiry" value="3600"></label><br>
+    <button id="create">Create Policy (on-chain)</button>
+
+    <pre id="log"></pre>
+
+        <script type="module">
+            // prefer the imported ESM ethers if available
+            const ethers = window._ethers || (window.ethers ? window.ethers : undefined);
+            if (!ethers) {
+                document.getElementById('log').textContent = 'Ethers library not loaded.\n';
+                throw new Error('Ethers library not loaded');
+            }
+        const log = (t) => {
+            const p = document.getElementById('log');
+            p.textContent += t + "\n";
+        };
+
+        const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; // <-- đặt địa chỉ contract đã deploy
+        const CONTRACT_ABI = [
+            {
+                "inputs": [],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "uint256",
+                        "name": "policyId",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "string",
+                        "name": "evidence",
+                        "type": "string"
+                    }
+                ],
+                "name": "DamageReported",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": false,
+                        "internalType": "address",
+                        "name": "newOracle",
+                        "type": "address"
+                    }
+                ],
+                "name": "OracleUpdated",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "uint256",
+                        "name": "policyId",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "address",
+                        "name": "to",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "PayoutExecuted",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "uint256",
+                        "name": "policyId",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "insured",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "payoutAmount",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "PolicyCreated",
+                "type": "event"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address payable",
+                        "name": "_insured",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "_expiry",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "createPolicy",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "payable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "nextPolicyId",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "oracle",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "owner",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "policies",
+                "outputs": [
+                    {
+                        "internalType": "address payable",
+                        "name": "insured",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "premium",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "payoutAmount",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "expiry",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "enum ShippingInsurance.Status",
+                        "name": "status",
+                        "type": "uint8"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "policyId",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "evidence",
+                        "type": "string"
+                    }
+                ],
+                "name": "reportDamage",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_oracle",
+                        "type": "address"
+                    }
+                ],
+                "name": "setOracle",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address payable",
+                        "name": "to",
+                        "type": "address"
+                    }
+                ],
+                "name": "withdraw",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "stateMutability": "payable",
+                "type": "receive"
+            }
+        ];
+
+        let provider, signer, contract;
+
+        document.getElementById('connect').onclick = async () => {
+            if (!window.ethereum) {
+                alert('Cài MetaMask trước nhé');
+                return;
+            }
+            try {
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                const addr = await signer.getAddress();
+                document.getElementById('addr').textContent = addr;
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                log('Connected: ' + addr);
+            } catch (e) {
+                log('Connect error: ' + e);
+            }
+        };
+
+        document.getElementById('create').onclick = async () => {
+            try {
+                if (!contract) { alert('Chưa connect'); return; }
+                const recipient = document.getElementById('recipient').value || await signer.getAddress();
+                const premiumEth = document.getElementById('premium').value;
+                const expirySeconds = parseInt(document.getElementById('expiry').value, 10) || 3600;
+                const expiry = Math.floor(Date.now() / 1000) + expirySeconds;
+
+                const tx = await contract.createPolicy(recipient, expiry, { value: ethers.utils.parseEther(premiumEth) });
+                log('Tx sent: ' + tx.hash);
+                await tx.wait();
+                log('Tx mined: ' + tx.hash);
+            } catch (e) {
+                log('CreatePolicy error: ' + (e.message || e));
+            }
+        };
+    </script>
+</body>
+
+</html>
